@@ -2,15 +2,15 @@
 /**
  * WYSIWYG Editor Field for Kirby Panel
  *
- * @version   1.0.0
+ * @version   1.1.0
  * @author    Jonas Döbertin <hello@jd-powered.net>
  * @copyright digital storytelling pioneers <http://storypioneers.com>
  * @link      https://github.com/storypioneers/kirby-wysiwyg
  * @license   GNU GPL v3.0 <http://opensource.org/licenses/GPL-3.0>
  */
 
-/** Require HTML to Markdown conversion class */
-require __DIR__ . DS . 'vendor' . DS . 'HTML_To_Markdown.php';
+// Require vendor autoloader
+require __DIR__ . DS . 'vendor' . DS . 'autoload.php';
 
 /**
  * WYSIWYG Editor Field
@@ -36,14 +36,17 @@ class WysiwygField extends BaseField {
      */
     public static $assets = array(
         'js' => array(
-            'medium-editor-2.4.6.min.js',
-            'medium-button-1.1.min.js',
-            'bugfix.js',
+            'vendor/medium-editor-5.9.0.min.js',
+            'vendor/rangy-core-1.3.0.min.js',
+            'vendor/rangy-classapplier-1.3.0.min.js',
+            'del-button.js',
+            'ins-button.js',
+            'mark-button.js',
             'wysiwyg.js',
         ),
         'css' => array(
-            'medium-editor-2.4.6.min.css',
-            'medium-editor-theme-kirby-1.0.0.css',
+            'vendor/medium-editor-5.9.0.min.css',
+            'medium-editor-theme-kirby.css',
             'wysiwyg.css',
         ),
     );
@@ -72,8 +75,8 @@ class WysiwygField extends BaseField {
      */
     protected $defaults = array(
         'buttons' => array(
-            'header1',
-            'header2',
+            'h1',
+            'h2',
             'bold',
             'italic',
             'anchor',
@@ -84,8 +87,6 @@ class WysiwygField extends BaseField {
         ),
         'heading-style'  => 'atx',
         'double-returns' => true,
-        'first-header'   => 'h2',
-        'second-header'  => 'h3',
     );
 
     /**
@@ -125,21 +126,17 @@ class WysiwygField extends BaseField {
         }
 
         /*
-            (4) Load first header configuration
+            (4) Load drag/drop configuration
          */
-        $this->firstHeader = c::get('field.wysiwyg.first-header', 'h5');
-        if(!in_array($this->firstHeader, array('h1', 'h2', 'h3', 'h4', 'h5', 'h6')))
+        $this->kirbyDragDrop = c::get('field.wysiwyg.dragdrop.kirby', false);
+        if(!is_bool($this->kirbyDragDrop))
         {
-            $this->firstHeader = $this->defaults['first-header'];
+            $this->kirbyDragDrop = false;
         }
-
-        /*
-            (5) Load second header configuration
-         */
-        $this->secondHeader = c::get('field.wysiwyg.second-header', 'h6');
-        if(!in_array($this->secondHeader, array('h1', 'h2', 'h3', 'h4', 'h5', 'h6')))
+        $this->mediumDragDrop = c::get('field.wysiwyg.dragdrop.medium', false);
+        if(!is_bool($this->mediumDragDrop))
         {
-            $this->secondHeader = $this->defaults['second-header'];
+            $this->mediumDragDrop = false;
         }
     }
 
@@ -162,8 +159,9 @@ class WysiwygField extends BaseField {
         ));
         $input->html($this->convertToHtml($this->value() ?: ''));
         $input->data(array(
-            'field'  => 'wysiwygeditorfield',
-            'editor' => '#' . $this->id() . '-editor',
+            'field'           => 'wysiwygeditorfield',
+            'editor'          => '#' . $this->id() . '-editor',
+            'dragdrop-kirby'  => $this->kirbyDragDrop,
         ));
         return $input;
     }
@@ -203,11 +201,10 @@ class WysiwygField extends BaseField {
         $editor->addClass('wysiwyg-editor');
         $editor->attr('id', $this->id() . '-editor');
         $editor->data(array(
-            'storage'        => $this->id(),
-            'buttons'        => implode(',', $this->buttons),
-            'double-returns' => $this->doubleReturns,
-            'first-header'   => $this->firstHeader,
-            'second-header'  => $this->secondHeader,
+            'storage'         => $this->id(),
+            'buttons'         => implode(',', $this->buttons),
+            'double-returns'  => $this->doubleReturns,
+            'dragdrop-medium' => $this->mediumDragDrop,
         ));
 
         /*
@@ -252,9 +249,10 @@ class WysiwygField extends BaseField {
      */
     protected function convertToMarkdown($html)
     {
-        $converter = new HTML_To_Markdown();
-        $converter->set_option('strip_tags', false);
-        $converter->set_option('header_style', $this->headingStyle);
+        $converter = new League\HTMLToMarkdown\HtmlConverter(array(
+            'strip_tags' => false,
+            'header_style' => $this->headingStyle
+        ));
         return $converter->convert($html);
     }
 

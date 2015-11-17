@@ -12,15 +12,16 @@ WysiwygEditor = (function($, $field) {
 
     var self = this;
 
-    this.$field        = $field;
-    this.$editor       = $(this.$field.data('editor'));
-    this.$storage      = $('#' + this.$editor.data('storage'));
-    this.$draggable    = $('.sidebar').find('.draggable');
-    this.firstHeader   = this.$editor.data('first-header');
-    this.secondHeader  = this.$editor.data('second-header');
-    this.doubleReturns = this.$editor.is("[data-double-returns]");
-    this.buttons       = this.$editor.data('buttons').split(',')
-    this.editor        = null;
+    this.$field         = $field;
+    this.$editor        = $(this.$field.data('editor'));
+    this.$storage       = $('#' + this.$editor.data('storage'));
+    this.$draggable     = $('.sidebar').find('.draggable');
+
+    this.doubleReturns  = this.$editor.is('[data-double-returns]');
+    this.buttons        = this.$editor.data('buttons').split(',');
+    this.kirbyDragDrop  = this.$field.is('[data-dragdrop-kirby]');
+    this.mediumDragDrop = this.$editor.is('[data-dragdrop-medium]');
+    this.editor         = null;
 
     /**
      * Initialize editor field
@@ -34,7 +35,7 @@ WysiwygEditor = (function($, $field) {
          *
          * @since 1.0.0
          */
-        WysiwygDynamicCSS.add(self.$editor.attr('id'), self.firstHeader, self.secondHeader);
+        // WysiwygDynamicCSS.add(self.$editor.attr('id'), self.firstHeader, self.secondHeader);
 
         /**
          * Create MediumEditor instance
@@ -42,30 +43,37 @@ WysiwygEditor = (function($, $field) {
          * @since 1.0.0
          */
         self.editor = new MediumEditor(self.$editor.get(0), {
-            cleanPastedHTML:     true,
-            forcePlainText:      true,
-            buttonLabels:        'fontawesome',
+            buttonLabels: 'fontawesome',
+            disableReturn: false,
             disableDoubleReturn: !self.doubleReturns,
-            firstHeader:         self.firstHeader,
-            secondHeader:        self.secondHeader,
-            buttons:             self.buttons,
+            imageDragging: self.mediumDragDrop,
+
+            /* disabled due to missing HTML-to-Markdown Options
+            targetBlank: true,
+            anchor: {
+                customClassOption: null,
+                customClassOptionText: 'Button',
+                linkValidation: true,
+                placeholderText: 'Paste or type a link',
+                targetCheckbox: true,
+                targetCheckboxText: 'Open in new window'
+            },
+            */
+
+            toolbar: {
+                buttons: self.buttons,
+            },
+
+            paste: {
+                cleanPastedHTML: true,
+                forcePlainText: true,
+            },
+
             extensions: {
-                'del': new MediumButton({
-                    label: '<i class="fa fa-strikethrough"></i>',
-                    start: '<del>',
-                    end:   '</del>'
-                }),
-                'ins': new MediumButton({
-                    label: 'INS',
-                    start: '<ins>',
-                    end:   '</ins>'
-                }),
-                'mark': new MediumButton({
-                    label: 'MARK',
-                    start: '<mark>',
-                    end:   '</mark>'
-                }),
-           }
+                'del': new DelButton(),
+                'ins': new InsButton(),
+                'mark': new MarkButton()
+            }
         });
 
         /**
@@ -74,13 +82,16 @@ WysiwygEditor = (function($, $field) {
          *
          * @since 1.0.0
          */
-        self.$editor.droppable({
-            hoverClass: 'over',
-            accept:     self.draggable,
-            drop:       function(event, element) {
-                self.insertAtCaret(element.draggable.data('text'));
-            }
-        });
+        if(self.kirbyDragDrop) {
+            self.$editor.droppable({
+                hoverClass: 'over',
+                accept:     self.draggable,
+                drop:       function(event, element) {
+                    self.insertAtCaret(element.draggable.data('text'));
+                }
+            });
+        }
+
 
         /**
          * Observe changes to editor fields and update storage <textarea>
@@ -237,7 +248,7 @@ var WysiwygDynamicCSS = (function() {
         else if('addRule' in stylesheet) {
             self.stylesheet.addRule(selector, rules);
         }
-    }
+    };
 
     /**
      * Publish public methods
@@ -287,7 +298,8 @@ jQuery(function() {
      * @since 1.0.0
      */
     $.fn.wysiwygeditorfield = function() {
-            return new WysiwygEditor($, this);
+        rangy.init();
+        return new WysiwygEditor($, this);
     };
 
 })(jQuery);
